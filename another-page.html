@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poll Widget - Page 2</title>
+    <link rel="stylesheet" href="poll-widget.css">
+</head>
+<body>
+    <div id="poll-container"></div>
+    <script src="poll-widget.js"></script>
+    <script>
+        const questions = [
+            {
+                question: "What's your favorite color?",
+                options: ["Red", "Blue", "Green"]
+            }
+        ];
+        const pollWidget = new PollWidget("#poll-container", questions);
+        pollWidget.render();
+    </script>
+</body>
+</html>

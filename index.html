@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poll Widget - Page 1</title>
+    <link rel="stylesheet" href="poll-widget.css">
+</head>
+<body>
+    <div id="poll-container1"></div>
+    <div id="poll-container2"></div>
+    <script src="poll-widget.js"></script>
+    <script>
+        const questions = [
+            {
+                question: "How you feel today:",
+                options: ["Great", "Okay", "Not so good"]
+            }
+        ];
+        const pollWidget1 = new PollWidget("#poll-container1", questions);
+        pollWidget1.render();
+    </script>
+</body>
+</html>
