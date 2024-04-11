@@ -1,7 +1,13 @@
+/**
+ * @class
+ * @classdesc Represents a PollWidget.
+ */
 class PollWidget {
-    static renderedPolls = new Map();
-    static allWidgets = []; // New static property to hold all widgets
-
+    /**
+     * @constructor
+     * @param {string} containerSelector - The selector for the poll container.
+     * @param {Array} questions - The questions for the poll.
+     */
     constructor(containerSelector, questions) {
         this.container = document.querySelector(containerSelector);
         if (!this.container) {
@@ -10,27 +16,55 @@ class PollWidget {
 
         this.containerId = this.container.id;
         this.questions = questions;
-        this.sessionResponses = JSON.parse(sessionStorage.getItem('poll_responses_' + this.containerId)) || [];
-        this.totalResponses = JSON.parse(localStorage.getItem('total_poll_responses_' + this.containerId)) || [];
+        this.sessionResponses = this.getSessionResponses();
+        this.totalResponses = this.getTotalResponses();
         this.renderedQuestions = new Set();
 
-        PollWidget.allWidgets.push(this); // Add this widget to the allWidgets array
+        // Add this widget to the allWidgets array
+        PollWidget.allWidgets.push(this);
 
         // Clear sessionStorage for all widgets when the page is refreshed
-        window.onbeforeunload = function() {
-            PollWidget.allWidgets.forEach(widget => {
-                console.log(widget.containerId);
-                sessionStorage.removeItem('poll_responses_' + widget.containerId);
-            });
-        };
+        window.addEventListener('beforeunload', this.clearSessionStorage);
     }
 
+    /**
+     * @method
+     * @description Clears the session storage.
+     */
+    clearSessionStorage() {
+        PollWidget.allWidgets.forEach(widget => {
+            sessionStorage.removeItem('poll_responses_' + widget.containerId);
+        });
+    }
+
+    /**
+     * @method
+     * @description Gets the session responses.
+     * @returns {Array} The session responses.
+     */
+    getSessionResponses() {
+        return JSON.parse(sessionStorage.getItem('poll_responses_' + this.containerId)) || [];
+    }
+
+    /**
+     * @method
+     * @description Gets the total responses.
+     * @returns {Array} The total responses.
+     */
+    getTotalResponses() {
+        return JSON.parse(localStorage.getItem('total_poll_responses_' + this.containerId)) || [];
+    }
+
+    /**
+     * @method
+     * @description Renders the poll.
+     */
     render() {
         if (this.questions.length === 0) {
             console.log("No questions to render.");
             return;
         }
-        
+
         const sortedQuestions = [...this.questions].sort((a, b) => a.question.localeCompare(b.question));
 
         // Check if the poll has already been rendered
@@ -40,7 +74,7 @@ class PollWidget {
             console.log("This poll has already been rendered!");
             return;
         }
-    
+
         this.questions.forEach((question, index) => {
             const pollElement = this.createPollElement(question, index);
             this.container.appendChild(pollElement);
@@ -51,6 +85,13 @@ class PollWidget {
         PollWidget.renderedPolls.set(questionsKey, this.container.id);
     }
 
+    /**
+     * @method
+     * @description Creates a poll element.
+     * @param {Object} question - The question object.
+     * @param {number} index - The index of the question.
+     * @returns {HTMLElement} The poll element.
+     */
     createPollElement(question, index) {
         const pollElement = document.createElement('div');
         pollElement.classList.add('poll');
@@ -67,17 +108,30 @@ class PollWidget {
             optionElement.textContent = option;
             optionElement.addEventListener('click', () => this.vote(index, optionIndex));
             optionsContainer.appendChild(optionElement);
+            // Add tabindex to make the option focusable
+            optionElement.setAttribute('tabindex', '0');
+
+            // Add role and aria-label for screen readers
+            optionElement.setAttribute('role', 'button');
+            optionElement.setAttribute('aria-label', `Option ${optionIndex + 1}: ${option}`);
         });
         pollElement.appendChild(optionsContainer);
 
         const resultElement = document.createElement('div');
         resultElement.classList.add('result');
+        resultElement.setAttribute('data-question-index', index);
         resultElement.textContent = `Votes: ${this.getVotes(index)}`;
         pollElement.appendChild(resultElement);
 
         return pollElement;
     }
 
+    /**
+     * @method
+     * @description Handles a vote.
+     * @param {number} questionIndex - The index of the question.
+     * @param {number} optionIndex - The index of the option.
+     */
     vote(questionIndex, optionIndex) {
         const hasVotedInSession = this.sessionResponses.some(response =>
             response.questionIndex === questionIndex && response.containerId === this.containerId
@@ -90,19 +144,29 @@ class PollWidget {
             this.totalResponses.push({ questionIndex, optionIndex, containerId: this.containerId });
             localStorage.setItem('total_poll_responses_' + this.containerId, JSON.stringify(this.totalResponses));
 
-            this.updateResults();
+            this.updateResults(questionIndex);
         } else {
             console.log("You've already voted for this question in this session!");
         }
     }
 
-    updateResults() {
-        const resultElements = this.container.querySelectorAll('.result');
-        resultElements.forEach((resultElement, index) => {
-            resultElement.textContent = `Votes: ${this.getVotes(index)}`;
-        });
+    /**
+     * @method
+     * @description Updates the results.
+     */
+    updateResults(questionIndex) {
+        const resultElement = this.container.querySelector(`.result[data-question-index="${questionIndex}"]`);
+        if (resultElement) {
+            resultElement.textContent = `Votes: ${this.getVotes(questionIndex)}`;
+        }
     }
 
+    /**
+     * @method
+     * @description Gets the votes for a question.
+     * @param {number} questionIndex - The index of the question.
+     * @returns {number} The number of votes.
+     */
     getVotes(questionIndex) {
         const questionResponses = this.totalResponses.filter(response => 
             response.questionIndex === questionIndex && response.containerId === this.containerId
@@ -110,3 +174,8 @@ class PollWidget {
         return questionResponses.length;
     }
 }
+
+// Initialize static properties
+PollWidget.renderedPolls = new Map();
+// static property to hold all widgets
+PollWidget.allWidgets = [];

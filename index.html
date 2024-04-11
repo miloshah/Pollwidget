@@ -9,7 +9,7 @@
 <body>
     <div id="poll-container1"></div>
     <div id="poll-container2"></div>
-    <script src="poll-widget.js"></script>
+    <script src="dist/poll-widget.min.js"></script>
     <script>
         const questions = [
             {
@@ -17,8 +17,10 @@
                 options: ["Great", "Okay", "Not so good"]
             }
         ];
+
         const pollWidget1 = new PollWidget("#poll-container1", questions);
         pollWidget1.render();
+
     </script>
 </body>
 </html>
