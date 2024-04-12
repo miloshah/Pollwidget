@@ -323,5 +323,5 @@ class PollWidget {
 PollWidget.renderedPolls = new Map();
 // static property to hold all widgets
 PollWidget.allWidgets = [];
-
+//exports to run testcases
 module.exports = PollWidget;

@@ -8,7 +8,6 @@
 </head>
 <body>
     <div id="poll-container1"></div>
-    <div id="poll-container2"></div>
     <script src="poll-widget.js"></script>
     <script>
         const questions = [
@@ -18,18 +17,8 @@
             }
         ];
 
-        const questions2 = [
-            {
-                question: "How was yesterday:",
-                options: ["Great", "Okay", "Not so good"]
-            }
-        ];
-
         const pollWidget1 = new PollWidget("#poll-container1", questions);
         pollWidget1.render();
-
-        const pollWidget2 = new PollWidget("#poll-container2", questions2);
-        pollWidget2.render();
 
     </script>
 </body>
