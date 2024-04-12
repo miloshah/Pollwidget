@@ -18,6 +18,7 @@ class PollWidget {
         this.questions = questions;
         this.sessionResponses = this.getSessionResponses();
         this.totalResponses = this.getTotalResponses();
+        this.optionsPollObject = this.initializeOptionsPollObject();
         this.renderedQuestions = new Set();
 
         // Add this widget to the allWidgets array
@@ -53,6 +54,14 @@ class PollWidget {
      */
     getTotalResponses() {
         return JSON.parse(localStorage.getItem('total_poll_responses_' + this.containerId)) || [];
+    }
+
+    initializeOptionsPollObject() {
+        const optionsPollObject = {};
+        this.questions.forEach((question, index) => {
+            optionsPollObject[index] = Array(question.options.length).fill(0);
+        });
+        return optionsPollObject;
     }
 
     /**
@@ -93,37 +102,139 @@ class PollWidget {
      * @returns {HTMLElement} The poll element.
      */
     createPollElement(question, index) {
-        const pollElement = document.createElement('div');
-        pollElement.classList.add('poll');
-
-        const questionElement = document.createElement('p');
-        questionElement.textContent = question.question;
+        const pollWrapper = this.createElement('div', ['poll-wrapper']);
+        const pollElement = this.createElement('div', ['poll']);
+        const questionElement = this.createElement('p', [], {textContent: question.question});
         pollElement.appendChild(questionElement);
-
-        const optionsContainer = document.createElement('div');
-        optionsContainer.classList.add('options-container');
+    
+        const ul = this.createElement('ul', ['poll-choices']);
+        const totalVotes = this.getVotes(index);
+    
         question.options.forEach((option, optionIndex) => {
-            const optionElement = document.createElement('div');
-            optionElement.classList.add('option');
-            optionElement.textContent = option;
-            optionElement.addEventListener('click', () => this.vote(index, optionIndex));
-            optionsContainer.appendChild(optionElement);
-            // Add tabindex to make the option focusable
-            optionElement.setAttribute('tabindex', '0');
-
-            // Add role and aria-label for screen readers
-            optionElement.setAttribute('role', 'button');
-            optionElement.setAttribute('aria-label', `Option ${optionIndex + 1}: ${option}`);
+            const li = this.createOption(index, option, optionIndex, totalVotes);
+            ul.appendChild(li);
         });
-        pollElement.appendChild(optionsContainer);
+    
+        const resultElement = this.createElement('div', ['result'], {'data-question-index': index, textContent: `Total Votes: ${totalVotes}`});
+        pollElement.append(ul, resultElement);
+        pollWrapper.appendChild(pollElement);
+        return pollWrapper;
+    }
 
-        const resultElement = document.createElement('div');
-        resultElement.classList.add('result');
-        resultElement.setAttribute('data-question-index', index);
-        resultElement.textContent = `Votes: ${this.getVotes(index)}`;
-        pollElement.appendChild(resultElement);
+    createElement(tag, classes = [], attributes = {}, styles = {}) {
+        const element = document.createElement(tag);
+        this.addClasses(element, classes);
+        this.setAttributesAndProperties(element, attributes);
+        this.setStyles(element, styles);
+        return element;
+    }
 
-        return pollElement;
+    addClasses(element, classes) {
+        classes.forEach(cls => element.classList.add(cls));
+    }
+
+    setAttributesAndProperties(element, attributes) {
+        Object.keys(attributes).forEach(attr => {
+            if (attr === 'textContent' || attr === 'innerHTML') {
+                element[attr] = attributes[attr];
+            } else {
+                element.setAttribute(attr, attributes[attr]);
+            }
+        });
+    }
+    
+    setStyles(element, styles) {
+        Object.keys(styles).forEach(style => element.style.setProperty(style, styles[style]));
+    }
+
+    createOption(index, option, optionIndex, totalVotes) {
+        const optionVotes = this.getOptionVotes(index, optionIndex);
+        const percentage = totalVotes > 0 ? (optionVotes / totalVotes) * 100 : 0;
+
+        const li = this.createElement('li', ['poll-choice', `choice-${optionIndex}`]);
+        const label = this.createElement('label', [], {for: `choice-${optionIndex}`});
+        const resultDiv = this.createElement('div', ['poll-result'], {}, {'--percent': `${percentage}%`});
+        const starDiv = this.createElement('div', ['star'], {innerHTML: '<div></div>'});
+        const pollLabelDiv = this.createElement('div', ['poll-label']);
+        const radioDiv = this.createElement('div', ['radio']);
+        const radioInput = this.createElement('input', [], {type: 'radio', id: `choice-${optionIndex}`, name: 'poll'});
+        const answerDiv = this.createElement('div', ['answer'], {textContent: `${option}`});
+        const pollPercent = this.createElement('div', ['poll-percent'], {textContent: percentage.toFixed(2)});
+
+        resultDiv.appendChild(starDiv);
+        radioDiv.appendChild(radioInput);
+        pollLabelDiv.append(radioDiv, answerDiv, pollPercent);
+        label.append(resultDiv, pollLabelDiv);
+        li.appendChild(label);
+
+        label.addEventListener('click', (e) => this.vote(e,index, optionIndex));
+
+        return li;
+    }
+
+    handleAnimation(event, percentages) {  
+        const choices = event.target.closest('.poll').querySelectorAll('input[name=poll]');
+        if (!choices) {
+            console.error('Could not find poll element.');
+            return;
+        }
+        const values = this.distributePercentages(choices.length, percentages);
+        this.animatePollChoices(choices, values);
+        this.markPollAsAnswered(event.target);
+    }
+
+    distributePercentages(choiceCount, percentages) {
+        return percentages || Array.from({length: choiceCount}, () => Math.random()).map((n, _, arr) => (n / arr.reduce((a, b) => a + b)) * 100);
+    }
+
+    markPollAsAnswered(choice) {
+        choice.closest(".poll").classList.add("answered");
+    }
+
+    animatePollChoices(choices, values) {
+        choices.forEach((choice, i) => {
+            const pollChoice = choice.closest(".poll-choice");
+            const result = pollChoice.querySelector(".poll-result");
+            pollChoice.classList.toggle("winner", values[i] == Math.max(...values));
+            result.style.setProperty("--percent", values[i] + "%");
+            this.increaseNumber(pollChoice.querySelector(".poll-percent"), values[i]);
+        });
+    }
+
+    increaseNumber = (node,value) => {
+        node.innerText = "0%";
+        node.innerText = value + "%";
+        this.animateNumber(0,value, 1200,this.easeQuad,function(v) {
+          node.innerText = Math.ceil(v) + "%";
+        })
+    }
+
+    easeQuad(t) {
+    return t*t/(2*(t*t-t)+1)
+    }
+
+    animateNumber(
+    start,
+    end,
+    duration,
+    easingFunction,
+    callback 
+    ) {
+    const startTime = Date.now();
+    const endTime = startTime + duration;
+    const change = end - start;
+    const tick = () => {
+        const now = Date.now();
+        if (now >= endTime) {
+        callback(end);
+        } else {
+        const elapsed = now - startTime;
+        const value = easingFunction(elapsed / duration) * change + start;
+        callback(value);
+        requestAnimationFrame(tick);
+        }
+    };
+    tick();
     }
 
     /**
@@ -132,19 +243,26 @@ class PollWidget {
      * @param {number} questionIndex - The index of the question.
      * @param {number} optionIndex - The index of the option.
      */
-    vote(questionIndex, optionIndex) {
+    vote(event,questionIndex, optionIndex) {
         const hasVotedInSession = this.sessionResponses.some(response =>
             response.questionIndex === questionIndex && response.containerId === this.containerId
         );
-
         if (!hasVotedInSession) {
-            this.sessionResponses.push({ questionIndex, optionIndex, containerId: this.containerId });
+            this.sessionResponses.push({
+                questionIndex,
+                optionIndex,
+                containerId: this.containerId
+            });
             sessionStorage.setItem('poll_responses_' + this.containerId, JSON.stringify(this.sessionResponses));
 
-            this.totalResponses.push({ questionIndex, optionIndex, containerId: this.containerId });
+            this.totalResponses.push({
+                questionIndex,
+                optionIndex,
+                containerId: this.containerId
+            });
             localStorage.setItem('total_poll_responses_' + this.containerId, JSON.stringify(this.totalResponses));
 
-            this.updateResults(questionIndex);
+            this.updateResults(event, questionIndex);
         } else {
             console.log("You've already voted for this question in this session!");
         }
@@ -154,11 +272,29 @@ class PollWidget {
      * @method
      * @description Updates the results.
      */
-    updateResults(questionIndex) {
+    updateResults(event, questionIndex) {
         const resultElement = this.container.querySelector(`.result[data-question-index="${questionIndex}"]`);
         if (resultElement) {
-            resultElement.textContent = `Votes: ${this.getVotes(questionIndex)}`;
+            const totalVotes = this.getVotes(questionIndex);
+            resultElement.textContent = `Votes: ${totalVotes}`;
+            
+            const choices = resultElement.parentElement.querySelectorAll('.answer');
+
+            let optionsPercentages = this.calculatePercentages(questionIndex, totalVotes, choices);
+            this.handleAnimation(event,optionsPercentages)
         }
+    }
+
+    calculatePercentages(questionIndex, totalVotes, choices) {
+        let optionsPercentages = [];
+        choices.forEach((value) => {
+            const optionIndex = parseInt(value.parentElement.querySelector('input[type="radio"]').id.split('-')[1]);
+            const optionVotes = this.getOptionVotes(questionIndex, optionIndex);
+            const percentage = totalVotes > 0 ? (optionVotes / totalVotes) * 100 : 0;
+            value.textContent = `${value.textContent.split('(')[0]}`;
+            optionsPercentages.push(percentage.toFixed(2))
+        });
+        return optionsPercentages
     }
 
     /**
@@ -173,9 +309,19 @@ class PollWidget {
         );
         return questionResponses.length;
     }
+
+    getOptionVotes(questionIndex, optionIndex) {
+        const questionResponses = this.totalResponses.filter(response =>
+            response.questionIndex === questionIndex &&
+            response.optionIndex === optionIndex &&
+            response.containerId === this.containerId
+        );
+        return questionResponses.length;
+    }
 }
 
-// Initialize static properties
 PollWidget.renderedPolls = new Map();
 // static property to hold all widgets
 PollWidget.allWidgets = [];
+
+module.exports = PollWidget;
