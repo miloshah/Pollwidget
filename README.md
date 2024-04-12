@@ -33,3 +33,8 @@ Example:
 - Ensured responsiveness and styling to improve user experience.
 
 This implementation meets the requirements specified and provides a foundation for further enhancements and customizations.
+
+
+###Improvements:
+-  Persistence of votes across sessions: The current implementation uses localStorage to store the responses. This means that the votes are only saved locally on the user’s machine. If the user clears their browser data or switches devices, the votes will be lost. A more robust solution would be to store the votes on a server.
+- Internationalization of the text of the polls
